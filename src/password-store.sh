@@ -334,9 +334,21 @@ cmd_show() {
 
 cmd_find() {
 	[[ -z "$@" ]] && die "Usage: $PROGRAM $COMMAND pass-names..."
-	IFS="," eval 'echo "Search Terms: $*"'
-	local terms="*$(printf '%s*|*' "$@")"
-	tree -C -l --noreport -P "${terms%|*}" --prune --matchdirs --ignore-case "$PREFIX" | tail -n +2 | sed -E 's/\.gpg(\x1B\[[0-9]+m)?( ->|$)/\1\2/g'
+	IFS="," eval 'echo "Search Terms: $*" 1>&2'
+	local terms="$(printf '*%s*' "$@")"
+	local results=$(find "${PREFIX}" -iname "${terms}" 2>/dev/null)
+	for file_or_dir in ${results}; do
+		if [ -d "${file_or_dir}" ]; then
+			local dirz=$(find "${file_or_dir}" -iname "*.gpg" 2>/dev/null)
+			for a_file in ${dirz}; do
+				local resp="${a_file%%.gpg}"
+				printf '%s\n' "${resp##${PREFIX}/}"
+			done
+		elif [ -f "${file_or_dir}" ]; then
+			local resp="${file_or_dir%%.gpg}"
+			printf '%s\n' "${resp##${PREFIX}/}"
+		fi
+	done
 }
 
 cmd_grep() {
